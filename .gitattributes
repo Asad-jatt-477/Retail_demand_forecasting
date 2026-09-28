@@ -1,0 +1,4 @@
+# Track trained model binaries with Git LFS instead of plain git.
+# Run `git lfs install` once, then `git lfs track` is already configured below.
+models/v2/*.pkl filter=lfs diff=lfs merge=lfs -text
+*.pkl filter=lfs diff=lfs merge=lfs -text

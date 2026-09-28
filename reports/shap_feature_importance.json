@@ -1,0 +1,36 @@
+{
+  "generated_by": "13_model_explainability_shap.py",
+  "model_explained": "random forest (winner per metrics_v3.json)",
+  "output_explained": "multi-unit prediction (positive SHAP = toward Qty 2..5, negative = toward Qty=1)",
+  "sample_size": 500,
+  "global_feature_importance": {
+    "product_group": 0.2520397435340989,
+    "product_price_log": 0.14058575710837054
+  },
+  "worked_examples": {
+    "single_unit_order": [
+      {
+        "feature": "product_group",
+        "value": 7.447665206945793e-05,
+        "shap_contribution": -0.3849020254251353
+      },
+      {
+        "feature": "product_price_log",
+        "value": 4.875121026397495,
+        "shap_contribution": -0.11528309747630368
+      }
+    ],
+    "multi_unit_order": [
+      {
+        "feature": "product_group",
+        "value": 0.8009385799112159,
+        "shap_contribution": 0.1703665906247084
+      },
+      {
+        "feature": "product_price_log",
+        "value": 3.931433389924823,
+        "shap_contribution": 0.15640068469021245
+      }
+    ]
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "generated_by": "10_model_training.py",
+  "random_state": 42,
+  "n_iter": 25,
+  "cv_folds": 5,
+  "train_rows": 142548,
+  "test_rows": 35848,
+  "features_used": [
+    "product_price_log",
+    "discount_intensity",
+    "order_month",
+    "order_weekday",
+    "shipping_year",
+    "shipping_urgency_score",
+    "is_q1_restocking",
+    "is_q4_slowdown",
+    "is_weekend",
+    "customer_segment_Consumer",
+    "customer_segment_Corporate",
+    "market_Europe",
+    "market_LATAM",
+    "market_Pacific Asia",
+    "order_region_Oceania",
+    "order_region_Western Europe",
+    "product_group",
+    "dept_group"
+  ],
+  "dropped_future_info_columns": [
+    "processing_delay_days",
+    "late_delivery_risk",
+    "order_status_COMPLETE",
+    "order_status_PENDING_PAYMENT",
+    "benefit_per_order_yj",
+    "order_item_profit_ratio"
+  ],
+  "group_aware_split": {
+    "note": "FIX D \u2014 rows are grouped by their full feature combination so a combination never appears in both train and test (prevents the memorization/inflation described in the script header).",
+    "unique_feature_combinations": 83443,
+    "total_rows": 178396,
+    "avg_collision_rate": 2.14,
+    "train_test_combo_overlap": 0
+  },
+  "baseline": {
+    "f1_macro": 0.19721331891732272,
+    "accuracy": 0.3471881276500781
+  },
+  "random_forest": {
+    "f1_macro": 0.3901641393020142,
+    "f1_weighted": 0.6023925626370086,
+    "accuracy": 0.5799207766123633,
+    "per_class_recall": {
+      "qty_1": 0.78969209488191,
+      "qty_2": 0.6145626242544732,
+      "qty_3": 0.08823529411764706,
+      "qty_4": 0.2169947191550648,
+      "qty_5": 0.39835231402956145
+    },
+    "best_params": {
+      "rf__n_estimators": 100,
+      "rf__min_samples_split": 10,
+      "rf__min_samples_leaf": 2,
+      "rf__max_features": "sqrt",
+      "rf__max_depth": 15
+    },
+    "cv_best_f1_macro": 0.3894221845408062,
+    "tuning_seconds": 963.0393283367157,
+    "model_size_mb": 56.8
+  },
+  "xgboost": {
+    "f1_macro": 0.3879246038534882,
+    "f1_weighted": 0.6010520785749938,
+    "accuracy": 0.5790560142825262,
+    "per_class_recall": {
+      "qty_1": 0.7897945591474973,
+      "qty_2": 0.5834990059642147,
+      "qty_3": 0.09346959122632104,
+      "qty_4": 0.1886701872299568,
+      "qty_5": 0.4441482917373395
+    },
+    "best_params": {
+      "xgb__subsample": 0.7,
+      "xgb__n_estimators": 200,
+      "xgb__min_child_weight": 3,
+      "xgb__max_depth": 6,
+      "xgb__learning_rate": 0.1,
+      "xgb__colsample_bytree": 0.7
+    },
+    "cv_best_f1_macro": 0.38480049778603875,
+    "tuning_seconds": 1792.1122272014618,
+    "model_size_mb": 3.4
+  },
+  "winner": "Random Forest"
+}

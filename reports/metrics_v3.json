@@ -1,0 +1,170 @@
+{
+  "generated_by": "10_model_training.py",
+  "problem": "binary: is_multi_unit = (order_item_quantity >= 2); 0 = single-unit (fast-pick), 1 = multi-unit (bulk zone)",
+  "class_names": [
+    "Single-unit (Qty=1)",
+    "Multi-unit (Qty 2-5)"
+  ],
+  "random_state": 42,
+  "n_iter": 25,
+  "cv_folds": 5,
+  "train_rows": 142716,
+  "test_rows": 35680,
+  "test_multi_unit_share": 0.4561939461883408,
+  "features_used": [
+    "product_price_log",
+    "product_group"
+  ],
+  "dropped_future_info_columns": [],
+  "dropped_quantity_derived_columns": [],
+  "split": {
+    "type": "stratified random row split, 80/20 (FIX G)",
+    "note": "Answers \"a new order for a product we already sell\". The model has only a few hundred distinct inputs so it cannot memorize rows; see the script header (FIX G) and stress_test_unseen_products for the cold-start question.",
+    "distinct_model_inputs": 107,
+    "total_rows": 178396,
+    "avg_repeat_rate": 1667.25,
+    "test_rows_with_exact_input_seen_in_train": 1.0
+  },
+  "stress_test_unseen_products": {
+    "n_products": 107,
+    "folds": 5,
+    "grouped_by": [
+      "product_group",
+      "product_price_log"
+    ],
+    "Random Forest": {
+      "f1_macro_per_fold": [
+        0.9059,
+        0.8964,
+        0.8888,
+        0.824,
+        0.8751
+      ],
+      "mean": 0.8780317936055347,
+      "min": 0.8239786451315583,
+      "max": 0.9059081578384984
+    },
+    "XGBoost": {
+      "f1_macro_per_fold": [
+        0.3906,
+        0.3688,
+        0.3584,
+        0.7373,
+        0.3416
+      ],
+      "mean": 0.4393388764926538,
+      "min": 0.341628316572922,
+      "max": 0.7372609758215447
+    }
+  },
+  "baseline_dummy": {
+    "f1_macro": 0.49985240442464474,
+    "f1_weighted": 0.5037234089265753,
+    "accuracy": 0.5037556053811659,
+    "balanced_accuracy": 0.499852691050503,
+    "per_class": {
+      "single_unit": {
+        "precision": 0.543671830768439,
+        "recall": 0.5444003504612689,
+        "f1": 0.544035846724351,
+        "support": 19403
+      },
+      "multi_unit": {
+        "precision": 0.4560334748630854,
+        "recall": 0.45530503163973707,
+        "f1": 0.4556689621249385,
+        "support": 16277
+      }
+    },
+    "roc_auc": 0.499852691050503,
+    "pr_auc_multi": 0.4561208827865181
+  },
+  "baseline_price_rule": {
+    "f1_macro": 0.8772884521911521,
+    "f1_weighted": 0.8769127089564389,
+    "accuracy": 0.8774383408071749,
+    "balanced_accuracy": 0.8873112405298149,
+    "per_class": {
+      "single_unit": {
+        "precision": 1.0,
+        "recall": 0.7746224810596299,
+        "f1": 0.8729997386228328,
+        "support": 19403
+      },
+      "multi_unit": {
+        "precision": 0.7882324455205811,
+        "recall": 1.0,
+        "f1": 0.8815771657594714,
+        "support": 16277
+      }
+    },
+    "rule": "predict single-unit when product price is above the highest price at which a multi-unit order was seen in TRAIN; otherwise multi-unit",
+    "train_max_multi_unit_price": 100.00000000000003
+  },
+  "random_forest": {
+    "f1_macro": 0.8860763085215544,
+    "f1_weighted": 0.8858144726287107,
+    "accuracy": 0.8861547085201794,
+    "balanced_accuracy": 0.8953254651342576,
+    "per_class": {
+      "single_unit": {
+        "precision": 1.0,
+        "recall": 0.7906509302685152,
+        "f1": 0.8830877273773889,
+        "support": 19403
+      },
+      "multi_unit": {
+        "precision": 0.800285166429028,
+        "recall": 1.0,
+        "f1": 0.88906488966572,
+        "support": 16277
+      }
+    },
+    "roc_auc": 0.895230304125989,
+    "pr_auc_multi": 0.7999485945352312,
+    "best_params": {
+      "rf__n_estimators": 100,
+      "rf__min_samples_split": 10,
+      "rf__min_samples_leaf": 2,
+      "rf__max_features": "sqrt",
+      "rf__max_depth": 15
+    },
+    "cv_best_f1_macro": 0.8852615587400248,
+    "tuning_seconds": 797.0482609272003,
+    "model_size_mb": 4.7
+  },
+  "xgboost": {
+    "f1_macro": 0.8860763085215544,
+    "f1_weighted": 0.8858144726287107,
+    "accuracy": 0.8861547085201794,
+    "balanced_accuracy": 0.8953254651342576,
+    "per_class": {
+      "single_unit": {
+        "precision": 1.0,
+        "recall": 0.7906509302685152,
+        "f1": 0.8830877273773889,
+        "support": 19403
+      },
+      "multi_unit": {
+        "precision": 0.800285166429028,
+        "recall": 1.0,
+        "f1": 0.88906488966572,
+        "support": 16277
+      }
+    },
+    "roc_auc": 0.8968078319884556,
+    "pr_auc_multi": 0.8032423310680799,
+    "best_params": {
+      "xgb__subsample": 0.9,
+      "xgb__n_estimators": 150,
+      "xgb__min_child_weight": 3,
+      "xgb__max_depth": 3,
+      "xgb__learning_rate": 0.05,
+      "xgb__colsample_bytree": 1.0
+    },
+    "cv_best_f1_macro": 0.8852615587400248,
+    "tuning_seconds": 338.48017048835754,
+    "model_size_mb": 0.1
+  },
+  "winner": "Random Forest"
+}

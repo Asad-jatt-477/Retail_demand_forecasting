@@ -1,0 +1,28 @@
+# ── Large datasets (regenerate via the pipeline scripts; don't commit raw data) ──
+Retail_demand_forecasting_dataset.csv
+Retail_demand_forecasting_CLEANED.csv
+Retail_demand_outliers_TREATED.csv
+Retail_demand_YJ_transformed.csv
+Retail_demand_FE.csv
+Retail_demand_FS.csv
+eda_mean_by_quantity.csv
+eda_chi2_results.csv
+eda_normality_test_results.csv
+
+# ── v1 (deprecated) oversized Random Forest model — see PROJECT_CHANGELOG.md ──
+Saved_Models/random_forest_pipeline.pkl
+
+# ── Python ──
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# ── OS / editor ──
+.DS_Store
+.vscode/
+*.swp
+
+# ── Streamlit ──
+.streamlit/secrets.toml

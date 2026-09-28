@@ -1,0 +1,52 @@
+{
+  "generated_by": "13_model_explainability_shap.py",
+  "model_explained": "random_forest (winner per metrics_v2.json)",
+  "sample_size": 500,
+  "global_feature_importance": {
+    "product_group": 0.05025843527577047,
+    "product_price_log": 0.047096644006207965,
+    "discount_intensity": 0.042301900619228845,
+    "dept_group": 0.010435167347340313,
+    "shipping_year": 0.0032815598133566506,
+    "order_month": 0.00304754559536292,
+    "order_weekday": 0.0028475349089319363,
+    "shipping_urgency_score": 0.002268790462515241,
+    "customer_segment_Consumer": 0.0017469432095081634,
+    "is_q4_slowdown": 0.0016715884192320524,
+    "customer_segment_Corporate": 0.0016169096007944486,
+    "is_weekend": 0.001352833935573194,
+    "is_q1_restocking": 0.0011030411961709123,
+    "market_Europe": 0.0010834316200254153,
+    "market_Pacific Asia": 0.001033573572939876,
+    "market_LATAM": 0.0010090397530470312,
+    "order_region_Western Europe": 0.0009593159600442278,
+    "order_region_Oceania": 0.0005103668875189634
+  },
+  "worked_example_qty3_prediction": [
+    {
+      "feature": "product_group",
+      "value": 3.0049719596624183,
+      "shap_contribution": 0.020701332930835366
+    },
+    {
+      "feature": "product_price_log",
+      "value": 4.110709943853864,
+      "shap_contribution": 0.018244180930543585
+    },
+    {
+      "feature": "dept_group",
+      "value": 2.0115471540624235,
+      "shap_contribution": -0.006029477533826276
+    },
+    {
+      "feature": "discount_intensity",
+      "value": 2.0,
+      "shap_contribution": 0.005980375861916999
+    },
+    {
+      "feature": "shipping_urgency_score",
+      "value": 3.0,
+      "shap_contribution": -0.0039936681925186275
+    }
+  ]
+}

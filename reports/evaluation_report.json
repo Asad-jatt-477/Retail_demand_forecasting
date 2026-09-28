@@ -1,0 +1,113 @@
+{
+  "generated_by": "12_model_evaluation.py",
+  "model_evaluated": "Random Forest",
+  "reproduced_split_matches_training": {
+    "train_rows": 142716,
+    "test_rows": 35680
+  },
+  "learning_curve": {
+    "model": "Random Forest",
+    "cv": "StratifiedKFold(3)",
+    "train_sizes": [
+      19028,
+      38057,
+      57086,
+      76115,
+      95144
+    ],
+    "train_f1_macro": [
+      0.8873375666286697,
+      0.8862253486471529,
+      0.8851699305584165,
+      0.8851651130442207,
+      0.8852616136622206
+    ],
+    "cv_f1_macro": [
+      0.8852614824628892,
+      0.8852340279561736,
+      0.8852614824628892,
+      0.8852614824628892,
+      0.8852614824628892
+    ],
+    "final_train_cv_gap": 1.311993313990456e-07,
+    "verdict": "small gap (<0.05): no meaningful overfitting"
+  },
+  "calibration": {
+    "log_loss": 0.28665168627116727,
+    "brier_score": 0.09158533442684719
+  },
+  "error_by_price_band": [
+    {
+      "price_band": "<= $25",
+      "n_test_rows": 1188,
+      "accuracy": 0.8308080808080808,
+      "share_multi_unit": 0.7432659932659933,
+      "predicted_multi_share": 0.9124579124579124
+    },
+    {
+      "price_band": "$25-50",
+      "n_test_rows": 11474,
+      "accuracy": 0.7987624193829528,
+      "share_multi_unit": 0.7883911451978386,
+      "predicted_multi_share": 0.9896287258148858
+    },
+    {
+      "price_band": "$50-100",
+      "n_test_rows": 7988,
+      "accuracy": 0.8057085628442664,
+      "share_multi_unit": 0.7946920380570857,
+      "predicted_multi_share": 0.9889834752128193
+    },
+    {
+      "price_band": "$100-200",
+      "n_test_rows": 7831,
+      "accuracy": 1.0,
+      "share_multi_unit": 0.0,
+      "predicted_multi_share": 0.0
+    },
+    {
+      "price_band": "$200-500",
+      "n_test_rows": 7031,
+      "accuracy": 1.0,
+      "share_multi_unit": 0.0,
+      "predicted_multi_share": 0.0
+    },
+    {
+      "price_band": "> $500",
+      "n_test_rows": 168,
+      "accuracy": 1.0,
+      "share_multi_unit": 0.0,
+      "predicted_multi_share": 0.0
+    }
+  ],
+  "error_by_price_zone": [
+    {
+      "price_zone": "above $100",
+      "n_test_rows": 15030,
+      "accuracy": 1.0,
+      "share_multi_unit": 0.0,
+      "predicted_multi_share": 0.0
+    },
+    {
+      "price_zone": "multi-unit possible (price <= $100)",
+      "n_test_rows": 20650,
+      "accuracy": 0.8032929782082324,
+      "share_multi_unit": 0.7882324455205811,
+      "predicted_multi_share": 0.9849394673123487
+    }
+  ],
+  "per_class_detail": {
+    "single_unit": {
+      "precision": 1.0,
+      "recall": 0.7906509302685152,
+      "f1": 0.8830877273773889,
+      "support": 19403
+    },
+    "multi_unit": {
+      "precision": 0.800285166429028,
+      "recall": 1.0,
+      "f1": 0.88906488966572,
+      "support": 16277
+    }
+  }
+}
