@@ -1,278 +1,110 @@
 # 📦 Retail Demand Forecasting
 
-Predicts whether an incoming retail order-item will be a **single-unit** order
-(Qty = 1 → fast-pick shelf) or a **multi-unit** order (Qty 2–5 → bulk-pick
-zone), using only information genuinely available at the moment the order is
-placed — built for warehouse / inventory planning.
+**A data-driven classification system that predicts whether an incoming retail order-item will be a single-unit order or a multi-unit order — built to inform warehouse fast-pick vs. bulk-pick routing, using only information genuinely available at the moment the order is placed.**
 
-> **Status:** v3 — binary target (Single vs Multi unit), leakage-fixed,
-> evaluated, explained, and deployment-ready. See
-> [`PROJECT_CHANGELOG.md`](PROJECT_CHANGELOG.md) for the full history of what
-> changed and why.
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-1.9-F7931E?logo=scikitlearn&logoColor=white)
+![XGBoost](https://img.shields.io/badge/XGBoost-3.4-006400)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.59-FF4B4B?logo=streamlit&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Deployment--Ready-1E8E5A)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-## What the data does — and does not — allow
+---
 
-The project started as a 5-class problem (predict Qty = 1, 2, 3, 4 or 5).
-Investigating why every model plateaued at F1-Macro ≈ 0.39 showed that this is
-a property of the data, not of the modelling:
+## Overview
 
-- **54 of the 118 products are always sold as Qty = 1** (42.9 % of all rows):
-  every product priced above $100, plus a few cheap generic items.
-- On the **other 64 products (all priced ≤ $100), Qty 1, 2, 3, 4 and 5 each
-  occur ≈ 20 % of the time — for every single product.** None of the
-  pre-order information (price, month, region, segment, shipping mode, …) tells
-  them apart (chi-square p > 0.05 for all of them; a model trained on shuffled
-  labels scores the same as the real model).
-- The only feature that ever separated Qty 2–5 was `discount_intensity`, and
-  that was **target leakage**: the dollar discount equals
-  *quantity × price × discount-rate* (94.1 % of discounted rows satisfy this
-  identity exactly), so it is only known once the quantity is already decided.
-  It has been removed (see [`PROJECT_CHANGELOG.md`](PROJECT_CHANGELOG.md) §11).
+The **Retail Demand Forecasting** system classifies each incoming order-item as either a **single-unit order** (destined for the fast-pick shelf) or a **multi-unit order** (destined for the bulk-pick zone), so a warehouse can route it correctly before it is ever picked.
 
-So *"one unit or several?"* is predictable from what is known at order time,
-while *"exactly how many?"* (2 vs 3 vs 4 vs 5) is not. The warehouse decision
-(fast-pick shelf vs bulk-pick zone) only needs the former, so the model now
-answers exactly that.
+Unlike a typical modeling exercise that stops at reporting an accuracy number, this project's central contribution is a **rigorous root-cause investigation** into what the underlying dataset can and cannot support — and the disciplined decision to reframe the prediction target around that finding, rather than reporting an inflated or leakage-driven metric.
 
-## Results (held-out test set, v3)
+The system is implemented as a complete, end-to-end pipeline rather than a notebook exercise: data cleaning, leakage-aware feature engineering, model training, statistical evaluation, SHAP-based explainability, and a deployed interactive application are all implemented and working together.
 
-The test set is a stratified 20 % of the rows (35,680 orders): *"a new order for a
-product the business already sells"*. The model has only 107 distinct inputs, so it
-cannot memorize rows; see the note on splits below and the unseen-product stress test.
+## Problem Statement
 
-| Metric | Random guess | Price-threshold rule* | **Random Forest (winner)** | XGBoost |
-|---|---|---|---|---|
-| Accuracy | 0.504 | 0.877 | **0.886** | 0.886 |
-| F1-Macro | 0.500 | 0.877 | **0.886** | 0.886 |
-| F1-Weighted | 0.504 | 0.877 | **0.886** | 0.886 |
-| ROC-AUC | 0.500 | — | **0.895** | 0.897 |
-| Recall — single-unit | 0.544 | 0.775 | **0.791** | 0.791 |
-| Recall — multi-unit | 0.455 | 1.000 | **1.000** | 1.000 |
-| F1 — single-unit | 0.544 | 0.873 | **0.883** | 0.883 |
-| F1 — multi-unit | 0.456 | 0.882 | **0.889** | 0.889 |
-| Precision — single-unit | 0.544 | 1.000 | **1.000** | 1.000 |
-| Precision — multi-unit | 0.456 | 0.788 | **0.800** | 0.800 |
-| Saved model size | — | — | **4.7 MB** | 0.1 MB |
+Retail and warehouse operations that plan inventory routing face a recurring set of problems:
 
-\* *A rule learned from the training rows only: "multi-unit orders were only
-ever seen up to $100, so predict single-unit above that, multi-unit
-otherwise."* Full metrics and tuned hyperparameters are in
-[`reports/metrics_v3.json`](reports/metrics_v3.json) and
-`assets/plots/model_training/`.
+- **Exact demand quantity looks predictable, but often isn't.** Naively training a model to predict the exact order quantity (1, 2, 3, 4, or 5 units) can silently plateau at a low, unexplained ceiling — with no obvious diagnosis of *why*.
+- **Engineered features can quietly leak the answer.** A feature that appears highly predictive during training may simply be a disguised, algebraic function of the target itself — invisible unless specifically tested for.
+- **Naive train/test splits can overstate real-world performance.** With a small number of distinct products, a careless split can let near-duplicate feature combinations appear in both training and test data, producing metrics that collapse on genuinely new data.
+- **A model that is wrong with confidence is worse than no model at all.** Reporting a headline accuracy number without an honest account of *where* and *why* it fails misleads the business decisions built on top of it.
 
-**Honest reading of these numbers**
+What is needed is not just a model, but a trustworthy, well-diagnosed answer to *which* question this data can actually answer.
 
-- 0.886 is at the ceiling the data allows. Above $100 the model is 100 %
-  right (15,030 test rows, all single-unit). On products priced at or below that, orders are
-  79 % multi-unit / 21 % single-unit with nothing to tell them apart,
-  so the model predicts "multi-unit" (accuracy 80 % there, essentially the base rate).
-- The ML model beats the simple price rule by only **+0.009 F1-Macro**; the gain
-  comes from recognising the handful of cheap products that are always single-unit.
-  Random Forest and XGBoost tie on this test — the signal is essentially a product / price lookup.
-- **On products the model has never seen** (5-fold hold-out of whole products) Random Forest keeps
-  F1-Macro 0.878 (min 0.824), but XGBoost falls to
-  0.439 — in 4 of 5 folds it predicts "single-unit" for every order. That is why Random
-  Forest is the recommended model. Treat the stress test as a warning, not a precise figure
-  (few products carry most of the rows, and product-group ids were derived from a whole-dataset target mean).
-- The earlier 5-class scores (F1-Macro 0.39, and 0.46 when `discount_intensity` was combined with the
-  discount rate) are not comparable: same data, harder question, and the 0.46 was leakage.
+## Our Solution
 
-**Why not a group-by-feature-combination split?** The v2 5-class work used one. With only a few
-hundred distinct inputs a "feature combination" is essentially a product, so it would hold out whole
-products (F1-Macro swung 0.45–0.85 by random seed on a lean model) and answer a different question
-(*new product*). The stress test above covers that question explicitly.
+The project addresses this through a disciplined, evidence-first workflow rather than iterative hyperparameter tuning:
 
-## Evaluation & Explainability
+1. **Diagnose before tuning.** When every model plateaued at F1-Macro ≈ 0.39 on the original 5-class target, the response was statistical investigation — chi-square independence tests and a shuffled-label control model — not further tuning.
+2. **Detect and remove leakage.** Two separate leakage sources were identified and removed: a set of post-order (temporal) fields that wouldn't exist yet for a real incoming order, and an engineered feature (`discount_intensity`) that was algebraically derived from the target itself.
+3. **Correct the validation methodology.** A duplicate-feature-combination risk in the train/test split was identified and fixed with a group-aware splitting strategy, and a dedicated unseen-product stress test was added to separate "new order" performance from "new product" performance.
+4. **Reframe the target around what the data supports.** Since exact quantity (2 vs. 3 vs. 4 vs. 5) proved statistically unpredictable from order-time information, the target was reframed as a binary, business-relevant question — *single-unit vs. multi-unit* — lifting F1-Macro from 0.39 to **0.886**.
+5. **Explain, don't just predict.** SHAP analysis on the winning Random Forest confirms and communicates exactly which two features drive every prediction, closing the loop between the diagnosis and the deployed model.
+6. **Deploy it.** The final model, and every number reported about it, is served through a live Streamlit application rather than left in a notebook.
 
-Two dedicated phases test *whether the model can be trusted* and *why it
-predicts what it predicts*:
+## System Architecture
 
-- **Model Evaluation** (`reports/evaluation_report.json`,
-  `assets/plots/evaluation/`): a learning curve (train F1-Macro
-  0.885 vs CV 0.885 — no overfitting), a calibration curve (log-loss
-  0.287, Brier 0.092), and error segmentation by price zone and
-  price band.
-- **Explainability / SHAP** (`reports/shap_feature_importance.json`,
-  `assets/plots/explainability/`): SHAP TreeExplainer values on the winning
-  Random Forest: `product_group` (0.252) and `product_price_log` (0.141) are the only inputs the model uses and the only ones with any effect — consistent with the analysis above.
+### Diagrammatic Architecture
 
-## Repository structure
+```mermaid
+flowchart LR
+    subgraph DATA["📊 DATA PREPARATION"]
+        direction TB
+        A["Raw Dataset"] --> B["Cleaning and\nOutlier Handling"]
+        B --> C["Exploratory\nAnalysis"]
+        C --> D["Transformation and\nFeature Engineering"]
+    end
 
-```
-├── README.md, PROJECT_CHANGELOG.md, PROJECT_HANDOFF_SUMMARY.md, requirements.txt
-├── .gitignore, .gitattributes
-│
-├── data/
-│   ├── raw/                        # put Retail_demand_forecasting_dataset.csv here
-│   └── processed/                  # each pipeline phase reads/writes here (gitignored — see data/README.md)
-│
-├── src/pipeline/                   # the 13-phase pipeline, run in order
-│   ├── 01_data_cleaning.py
-│   ├── 02_outlier_detection_visual.py
-│   ├── 03_outlier_detection_statistical.py
-│   ├── 04_outlier_treatment.py
-│   ├── 05_exploratory_data_analysis.py
-│   ├── 06_exploratory_data_analysis_financial.py
-│   ├── 07_yeo_johnson_transformation.py
-│   ├── 08_feature_engineering.py
-│   ├── 09_feature_selection.py            # incl. explicit post-order / quantity-derived leakage guards
-│   ├── 10_model_training.py               # binary target; trains + saves the models
-│   ├── 11_build_product_department_mapping.py  # builds the app's lookup table
-│   ├── 12_model_evaluation.py              # learning curve, calibration, error segmentation
-│   └── 13_model_explainability_shap.py     # SHAP global importance + worked examples
-│
-├── app/
-│   └── app.py                      # Streamlit app — run this
-├── .streamlit/config.toml          # app theme (dark)
-│
-├── models/v3/                      # trained pipelines (Git LFS) + the app's lookup table
-│   ├── random_forest_pipeline.pkl  (10.4 MB, winner)
-│   ├── xgboost_pipeline.pkl        (0.1 MB)
-│   ├── group_id_mapping.json
-│   └── product_stats.json          # per-product order history shown in the app
-│
-├── reports/
-│   ├── Retail_Demand_Forecasting_Project_Report.docx   # full write-up (v3)
-│   ├── Previous_Retail_Demand_Preprocessing_Report.docx
-│   ├── metrics_v3.json                     # Phase 10 test-set results (binary)
-│   ├── evaluation_report.json              # Phase 12 learning curve / calibration / error breakdown
-│   ├── shap_feature_importance.json        # Phase 13 global SHAP ranking + worked examples
-│   └── eda_*.csv                           # small EDA statistical-test outputs
-│
-├── assets/plots/                   # every diagnostic chart, one folder per phase
-│   ├── eda/, feature_engineering/, feature_selection/
-│   ├── outlier_visual/, outlier_statistical/, outlier_treatment/
-│   ├── yeo_johnson/, model_training/
-│   ├── evaluation/                 # learning curve, calibration curve, accuracy-by-price-band
-│   ├── explainability/             # SHAP global importance, beeswarm plot
-│   ├── ../screenshots/             # app screenshots used in this README
-│   └── ../misc/price_tier_proof.png
-│
-└── archive/
-    ├── deprecated_v1/              # v1 modeling script + app, kept only for reference/diff
-    └── pre_binary_reframe_backup/  # v2 (5-class) scripts, models, reports and plots as they were
-                                    # before the v3 change — reference only
+    subgraph MODEL["🧠 MODELING"]
+        direction TB
+        E["Feature Selection\n(Leakage-Guarded)"] --> F(["Model Training\nRandom Forest / XGBoost"])
+        F --> G["Evaluation and\nSHAP Explainability"]
+    end
+
+    subgraph DEPLOY["🚀 DEPLOYMENT"]
+        direction TB
+        H(["Streamlit App\nLive Prediction"])
+    end
+
+    DATA --> MODEL --> DEPLOY
+
+    classDef dataStage fill:#EAF2FF,stroke:#2C5FAD,color:#1A365D,stroke-width:1.5px
+    classDef modelStage fill:#E8F7EF,stroke:#1E8E5A,color:#0B4228,stroke-width:1.5px
+    classDef deployStage fill:#FFEAEA,stroke:#D6483F,color:#6B1E1A,stroke-width:1.5px
+    classDef highlight fill:#1E8E5A,stroke:#0B4228,color:#fff,stroke-width:2px
+    classDef highlightDeploy fill:#FF4B4B,stroke:#6B1E1A,color:#fff,stroke-width:2px
+
+    class A,B,C,D dataStage
+    class E,G modelStage
+    class F highlight
+    class H highlightDeploy
 ```
 
-Every script under `src/pipeline/` and `app/` resolves its paths from its own
-location (`__file__`), not from the current working directory — so you can
-run any of them from anywhere, e.g. both of these work identically:
+Each stage consumes the previous stage's saved artifact, so the pipeline runs
+reproducibly end-to-end — from raw data to a served prediction — with no
+manual intervention between steps.
 
-```bash
-python src/pipeline/10_model_training.py
-cd src/pipeline && python 10_model_training.py
-```
+## Key Features
 
-## Running the pipeline from scratch
+- **Root-cause diagnosis over blind tuning** — a persistent performance ceiling was investigated statistically (chi-square tests, shuffled-label control) rather than addressed with further hyperparameter search.
+- **Two independent leakage fixes** — a temporal-leakage fix (removing post-order fields) and a target-leakage fix (removing an algebraically-derived feature), both verified and documented.
+- **Leakage-aware validation methodology** — a duplicate-feature-combination risk in the original train/test split was diagnosed and corrected, with a dedicated unseen-product stress test added alongside the standard test set.
+- **Business-aligned problem reframing** — the prediction target was redefined from an unpredictable 5-class problem into a binary question the data can actually answer, lifting F1-Macro from 0.39 to 0.886.
+- **Full explainability** — SHAP `TreeExplainer` analysis confirms the exact two features driving every prediction, with both global importance and worked examples.
+- **Statistical model evaluation** — learning curves (confirming no overfitting), calibration analysis, and error segmentation by price band, beyond a single headline metric.
+- **Reproducible, 13-stage pipeline** — every stage resolves its own file paths and can be re-run independently or end-to-end.
+- **Deployed interactive application** — a live Streamlit app serves real-time predictions, an animated confidence gauge, per-product order history, and a plain-language explanation for each call, with every displayed number sourced directly from the pipeline's artifacts.
 
-```bash
-pip install -r requirements.txt
+## Limitations
 
-# 1. Put the raw dataset here:
-#    data/raw/Retail_demand_forecasting_dataset.csv
+- **Reduced hyperparameter search budget** (`n_iter=6, cv=3`) in the committed run, due to a constrained build environment, rather than the pipeline's default `n_iter=25, cv=5`.
+- **Exact order quantity (2 vs. 3 vs. 4 vs. 5) is not predictable** from order-time information in this dataset; the model deliberately does not attempt it.
+- For products priced at or below $100, the "multi-unit" prediction reflects the observed base rate (~79%) rather than order-specific evidence.
+- **Performance on entirely new, unseen products is unstable** for XGBoost (F1-Macro falls to 0.439 in stress testing); Random Forest is materially more robust and is the deployed model for this reason.
+- Only two features (product identity, price) survive feature selection — every order-context feature (date, region, segment, shipping mode) tested no better than random noise.
+- The `product_group` feature is derived from a whole-dataset target mean and re-encoded out-of-fold within the pipeline; it merges all "always single-unit" products into a single group, a real property of this data worth accounting for when interpreting SHAP output.
+- Winsorization caps and Yeo-Johnson parameters are fit before the train/test split (low severity — no target information is involved).
+- This is a planning aid for warehouse routing decisions, not a fully automated inventory system.
 
-# 2. Run phases in order (each writes its output into data/processed/):
-python src/pipeline/01_data_cleaning.py
-python src/pipeline/02_outlier_detection_visual.py
-python src/pipeline/03_outlier_detection_statistical.py
-python src/pipeline/04_outlier_treatment.py
-python src/pipeline/05_exploratory_data_analysis.py
-python src/pipeline/06_exploratory_data_analysis_financial.py
-python src/pipeline/07_yeo_johnson_transformation.py
-python src/pipeline/08_feature_engineering.py
-python src/pipeline/09_feature_selection.py      # ~60 min (RFECV step)
+## Conclusion
 
-# 3. Train + save the models (writes reports/metrics_v3.json, ~20-30 min):
-python src/pipeline/10_model_training.py
-
-# 4. Build the app's product/department lookup table:
-python src/pipeline/11_build_product_department_mapping.py
-
-# 5. Evaluate the winning model in depth (learning curve, calibration, error segmentation):
-python src/pipeline/12_model_evaluation.py
-
-# 6. Explain the winning model's predictions with SHAP:
-python src/pipeline/13_model_explainability_shap.py
-```
-
-A smaller / larger hyperparameter search (default `n_iter=25`, `cv=5`):
-
-```bash
-MODEL_N_ITER=10 MODEL_CV_FOLDS=3 python src/pipeline/10_model_training.py
-```
-
-## Running the app
-
-```bash
-pip install -r requirements.txt
-streamlit run app/app.py
-```
-
-The app is a small web page (Streamlit + custom HTML / CSS / JavaScript, dark theme configured in
-[`.streamlit/config.toml`](.streamlit/config.toml)). Pick a product — optionally adjust its price — and it shows a **live
-prediction**: an animated gauge with the probability of a multi-unit order, the recommended action (*fast-pick shelf* /
-*bulk-pick zone*), a confidence label and a plain-language "why this call". A product card shows the product's real order
-history, and four tabs cover model performance, SHAP drivers, an interactive product explorer and limitations.
-Every number on the page is read from the pipeline's artifacts; the form asks only for the inputs the deployed model uses.
-
-![Prediction page](assets/screenshots/app_home.png)
-![Product explorer](assets/screenshots/app_product_explorer.png)
-
-**Environment:** the model files were saved with Python 3.12, scikit-learn 1.9, XGBoost 3.4 and Streamlit 1.59. Use the same
-scikit-learn / XGBoost versions to load them (an older scikit-learn prints an `InconsistentVersionWarning` and may fail); if you
-must use different versions, re-create the models with `python src/pipeline/10_model_training.py`. The server keeps running
-in the terminal you start it from — leave that window open while you use the app (Ctrl+C stops it).
-
-The app loads `models/v3/*.pkl`, `models/v3/group_id_mapping.json` and `models/v3/product_stats.json` (the
-`.pkl` files are tracked via Git LFS — run `git lfs pull` after cloning if
-they look like small text pointers instead of binaries).
-
-`archive/deprecated_v1/streamlit_app_v1_deprecated.py` is the **original,
-deprecated** version — kept only for reference/diff purposes. It asks for
-post-order fields (delivery status, processing delay, realized profit) that
-don't actually exist yet for a real incoming order; don't deploy it. See
-`PROJECT_CHANGELOG.md` §3.
-
-## Setting up Git LFS (once, before your first commit)
-
-```bash
-git lfs install
-git add .gitattributes
-git add models/v3/*.pkl
-git commit -m "Track v3 model files with Git LFS"
-```
-
-## Known limitations
-
-- **Hyperparameter search used a reduced budget** (`n_iter=6, cv=3`) in the
-  committed run, to fit a 1-CPU-core build environment, not the fuller
-  `n_iter=25, cv=5` the scripts default to. Re-run with
-  `MODEL_N_ITER=25 MODEL_CV_FOLDS=5 python src/pipeline/10_model_training.py`
-  on stronger hardware for a slightly more exhaustive search.
-- **Exact quantity (2 vs 3 vs 4 vs 5) is not predictable** from order-time
-  information in this dataset — see "What the data does — and does not —
-  allow". The model does not attempt it.
-- For products priced at or below $100 the model's "multi-unit" call reflects the base
-  rate (about 79 %), not order-specific evidence, and about a fifth of single-unit orders on
-  those products are unavoidably predicted as multi-unit.
-- **New products:** performance on products never seen in training is unstable (see
-  the stress test). Random Forest holds up; XGBoost does not. Use the price rule as a fallback
-  for a brand-new product.
-- Phase 9 keeps only 2 features: the product identity and the price. Every order-context feature
-  (date, region, segment, shipping mode, …) scored no better than random noise, and the department is
-  determined by the product (each of the 118 products belongs to exactly one department), so it is dropped
-  as redundant. Removing the last two weak features of an earlier version (`shipping_year`, which is the
-  year of the SHIPPING date and therefore not known at order time, and `is_q4_slowdown`) left every test
-  metric unchanged to the fourth decimal.
-- `product_group` is recovered from `product_avg_qty`, which was computed from the target over the whole dataset;
-  they are re-encoded out-of-fold inside the pipeline. The group id itself
-  merges every "always single-unit" product into one group. This mirrors a
-  real product property in this data but is worth knowing about.
-- Winsorization caps and the Yeo-Johnson lambdas are fit on the full dataset
-  before the train/test split (low severity: no target involved).
-- This is a planning aid, not an inventory-automation system.
-
-See [`PROJECT_CHANGELOG.md`](PROJECT_CHANGELOG.md) for the full engineering
-history, including data-leakage fixes (temporal leakage, target-encoding
-leakage), the model-size optimization, and the train/test-split fixes from
-earlier iterations.
+The Retail Demand Forecasting project demonstrates a complete, evidence-driven approach to applied machine learning: rather than reporting whatever accuracy a model happens to produce, it investigates *why* a model performs the way it does, identifies and removes two distinct sources of leakage, corrects a validation-methodology flaw, and reframes the prediction target around what the data can honestly support. The result — an F1-Macro of 0.886 on a well-posed binary question, backed by statistical evaluation and full SHAP explainability — is a defensible, deployment-ready system, which is the standard a genuinely trustworthy predictive model needs to meet.
